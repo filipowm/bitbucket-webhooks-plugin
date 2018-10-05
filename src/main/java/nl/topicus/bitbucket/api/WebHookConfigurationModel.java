@@ -56,23 +56,19 @@ public class WebHookConfigurationModel {
         this.url = url;
     }
 
-    public String getCommittersToIgnore()
-    {
+    public String getCommittersToIgnore() {
         return committersToIgnore;
     }
 
-    public void setCommittersToIgnore(String committersToIgnore)
-    {
+    public void setCommittersToIgnore(String committersToIgnore) {
         this.committersToIgnore = committersToIgnore;
     }
 
-    public String getBranchesToIgnore()
-    {
+    public String getBranchesToIgnore() {
         return branchesToIgnore;
     }
 
-    public void setBranchesToIgnore(String branchesToIgnore)
-    {
+    public void setBranchesToIgnore(String branchesToIgnore) {
         this.branchesToIgnore = branchesToIgnore;
     }
 

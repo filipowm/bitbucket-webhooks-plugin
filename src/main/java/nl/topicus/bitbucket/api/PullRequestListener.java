@@ -6,14 +6,7 @@ import com.atlassian.bitbucket.build.BuildStatus;
 import com.atlassian.bitbucket.build.BuildStatusSetEvent;
 import com.atlassian.bitbucket.event.branch.BranchCreatedEvent;
 import com.atlassian.bitbucket.event.branch.BranchDeletedEvent;
-import com.atlassian.bitbucket.event.pull.PullRequestCommentEvent;
-import com.atlassian.bitbucket.event.pull.PullRequestDeclinedEvent;
-import com.atlassian.bitbucket.event.pull.PullRequestEvent;
-import com.atlassian.bitbucket.event.pull.PullRequestMergedEvent;
-import com.atlassian.bitbucket.event.pull.PullRequestOpenedEvent;
-import com.atlassian.bitbucket.event.pull.PullRequestReopenedEvent;
-import com.atlassian.bitbucket.event.pull.PullRequestRescopedEvent;
-import com.atlassian.bitbucket.event.pull.PullRequestUpdatedEvent;
+import com.atlassian.bitbucket.event.pull.*;
 import com.atlassian.bitbucket.event.repository.RepositoryDeletionRequestedEvent;
 import com.atlassian.bitbucket.event.repository.RepositoryRefsChangedEvent;
 import com.atlassian.bitbucket.event.tag.TagCreatedEvent;
@@ -30,12 +23,7 @@ import com.atlassian.bitbucket.util.Version;
 import com.atlassian.event.api.EventListener;
 import com.atlassian.event.api.EventPublisher;
 import com.atlassian.plugin.spring.scanner.annotation.imports.ComponentImport;
-import nl.topicus.bitbucket.events.BitbucketPushEvent;
-import nl.topicus.bitbucket.events.BitbucketServerPullRequestEvent;
-import nl.topicus.bitbucket.events.BuildStatusEvent;
-import nl.topicus.bitbucket.events.Event;
-import nl.topicus.bitbucket.events.EventType;
-import nl.topicus.bitbucket.events.Events;
+import nl.topicus.bitbucket.events.*;
 import nl.topicus.bitbucket.model.Models;
 import nl.topicus.bitbucket.persistence.WebHookConfiguration;
 import nl.topicus.bitbucket.persistence.WebHookConfigurationDao;
@@ -59,8 +47,7 @@ import java.net.URI;
 import java.util.concurrent.ExecutorService;
 
 @Component
-public class PullRequestListener implements DisposableBean, InitializingBean
-{
+public class PullRequestListener implements DisposableBean, InitializingBean {
     private static final Logger LOGGER = LoggerFactory.getLogger(PullRequestListener.class);
 
     private final ApplicationPropertiesService applicationPropertiesService;
@@ -81,8 +68,7 @@ public class PullRequestListener implements DisposableBean, InitializingBean
                                @ComponentImport NavBuilder navBuilder,
                                @ComponentImport ScmService scmService,
                                @ComponentImport CommitIndex commitIndex,
-                               WebHookConfigurationDao webHookConfigurationDao)
-    {
+                               WebHookConfigurationDao webHookConfigurationDao) {
         this.applicationPropertiesService = applicationPropertiesService;
         this.eventPublisher = eventPublisher;
         this.executorService = executorService;
@@ -96,45 +82,36 @@ public class PullRequestListener implements DisposableBean, InitializingBean
     }
 
     @Override
-    public void afterPropertiesSet()
-    {
+    public void afterPropertiesSet() {
         eventPublisher.register(this);
     }
 
     @EventListener
-    public void onPullRequestCreated(PullRequestOpenedEvent event)
-    {
+    public void onPullRequestCreated(PullRequestOpenedEvent event) {
         sendPullRequestEvent(event, EventType.PULL_REQUEST_CREATED, true);
     }
 
     @Override
-    public void destroy()
-    {
+    public void destroy() {
         eventPublisher.unregister(this);
 
-        try
-        {
+        try {
             httpClient.close();
-        }
-        catch (IOException e)
-        {
+        } catch (IOException e) {
             LOGGER.warn("Failed to close HttpClient; it will be abandoned", e);
         }
     }
 
     @EventListener
-    public void onPullRequestUpdated(PullRequestUpdatedEvent event)
-    {
+    public void onPullRequestUpdated(PullRequestUpdatedEvent event) {
         sendPullRequestEvent(event, EventType.PULL_REQUEST_UPDATED);
     }
 
     @EventListener
-    public void onPullRequestReopened(PullRequestReopenedEvent event)
-    {
+    public void onPullRequestReopened(PullRequestReopenedEvent event) {
         PullRequest pullRequest = event.getPullRequest();
         if (pullRequest.getFromRef().getLatestCommit().equals(event.getPreviousFromHash()) &&
-                pullRequest.getToRef().getLatestCommit().equals(event.getPreviousToHash()))
-        {
+                pullRequest.getToRef().getLatestCommit().equals(event.getPreviousToHash())) {
             // If the PullRequest's from and to refs were not updated when it was reopend, trigger webhooks
             // for the update. Otherwise, if _either_ ref changed, a rescope event will also be raised. Let
             // that trigger webhooks instead, to ensure the pull request's refs are updated on disk
@@ -143,35 +120,30 @@ public class PullRequestListener implements DisposableBean, InitializingBean
     }
 
     @EventListener
-    public void onPullRequestRescoped(PullRequestRescopedEvent event)
-    {
+    public void onPullRequestRescoped(PullRequestRescopedEvent event) {
         // see this atlassian page for explanation of the logic in this handler:
         // https://answers.atlassian.com/questions/239988
 
         // only trigger when changes were pushed to the "from" side of the PR
-        if (event.isFromHashUpdated())
-        {
+        if (event.isFromHashUpdated()) {
             sendPullRequestEvent(event, EventType.PULL_REQUEST_RESCOPED, true);
         }
     }
 
     @EventListener
-    public void onPullRequestCommentEvent(PullRequestCommentEvent event) throws IOException
-    {
+    public void onPullRequestCommentEvent(PullRequestCommentEvent event) throws IOException {
         sendPullRequestEvent(event, EventType.PULL_REQUEST_COMMENT);
     }
 
     @EventListener
-    public void onPullRequestMerged(PullRequestMergedEvent event)
-    {
+    public void onPullRequestMerged(PullRequestMergedEvent event) {
         // Note that onRepositoryRefsChanged is _also_ called for this same event. It triggers a different
         // set of webhooks, however, so the double-handling is intentional
         sendPullRequestEvent(event, EventType.PULL_REQUEST_MERGED);
     }
 
     @EventListener
-    public void onPullRequestDeclined(PullRequestDeclinedEvent event)
-    {
+    public void onPullRequestDeclined(PullRequestDeclinedEvent event) {
         sendPullRequestEvent(event, EventType.PULL_REQUEST_DECLINED);
     }
 
@@ -198,8 +170,7 @@ public class PullRequestListener implements DisposableBean, InitializingBean
     }
 
     @EventListener
-    public void onRepositoryRefsChanged(RepositoryRefsChangedEvent event)
-    {
+    public void onRepositoryRefsChanged(RepositoryRefsChangedEvent event) {
         executorService.submit(() -> {
             BitbucketPushEvent pushEvent = Events.createPushEvent(event, applicationPropertiesService);
             sendEvents(pushEvent, event.getRepository(), chooseRefsChangedEvent(event));
@@ -207,8 +178,7 @@ public class PullRequestListener implements DisposableBean, InitializingBean
     }
 
     @EventListener
-    public void onBuildStatusSetEvent(BuildStatusSetEvent event) throws IOException
-    {
+    public void onBuildStatusSetEvent(BuildStatusSetEvent event) throws IOException {
         String commitId = event.getCommitId();
         IndexedCommit commit = commitIndex.getCommit(commitId);
         if (commit == null) {
@@ -237,54 +207,41 @@ public class PullRequestListener implements DisposableBean, InitializingBean
         });
     }
 
-    private static EventType chooseRefsChangedEvent(RepositoryRefsChangedEvent event)
-    {
-        if (event instanceof BranchCreatedEvent)
-        {
+    private static EventType chooseRefsChangedEvent(RepositoryRefsChangedEvent event) {
+        if (event instanceof BranchCreatedEvent) {
             return EventType.BRANCH_CREATED;
         }
-        if (event instanceof BranchDeletedEvent)
-        {
+        if (event instanceof BranchDeletedEvent) {
             return EventType.BRANCH_DELETED;
         }
-        if (event instanceof TagCreatedEvent)
-        {
+        if (event instanceof TagCreatedEvent) {
             return EventType.TAG_CREATED;
         }
         return EventType.REPO_PUSH;
     }
 
-    private void sendPullRequestEvent(PullRequestEvent event, EventType eventType)
-    {
+    private void sendPullRequestEvent(PullRequestEvent event, EventType eventType) {
         sendPullRequestEvent(event, eventType, false);
     }
 
-    private void sendPullRequestEvent(PullRequestEvent event, EventType eventType, boolean updateRefs)
-    {
+    private void sendPullRequestEvent(PullRequestEvent event, EventType eventType, boolean updateRefs) {
         executorService.submit(() -> {
             PullRequest pullRequest = event.getPullRequest();
-            if (updateRefs && pullRequest.isOpen())
-            {
-                try
-                {
+            if (updateRefs && pullRequest.isOpen()) {
+                try {
                     ScmPullRequestCommandFactory pullRequestCommandFactory = scmService.getPullRequestCommandFactory(pullRequest);
                     Command<?> command;
-                    if (useCanMerge)
-                    {
+                    if (useCanMerge) {
                         /*
                         This is to support version from 4.5.x - 4.9.x
                         Once we only support from 4.10.x and beyond we can remove this.
                          */
                         command = pullRequestCommandFactory.canMerge();
-                    }
-                    else
-                    {
+                    } else {
                         command = pullRequestCommandFactory.tryMerge(pullRequest);
                     }
                     command.call();
-                }
-                catch (ServiceException e)
-                {
+                } catch (ServiceException e) {
                     LOGGER.warn("{}: Mergeability check failed; pull request refs may not be up-to-date", pullRequest, e);
                 }
             }
@@ -300,15 +257,11 @@ public class PullRequestListener implements DisposableBean, InitializingBean
         });
     }
 
-    private void sendEvents(Object event, Repository repo, EventType eventType)
-    {
+    private void sendEvents(Object event, Repository repo, EventType eventType) {
         String body;
-        try
-        {
+        try {
             body = new ObjectMapper().writeValueAsString(event);
-        }
-        catch (IOException e)
-        {
+        } catch (IOException e) {
             LOGGER.error("[repo: {}]| Failed to marshal {} payload to JSON. The event will be discarded",
                     repo, eventType);
             return;
@@ -321,18 +274,14 @@ public class PullRequestListener implements DisposableBean, InitializingBean
                 new BasicHeader("X-Bitbucket-Type", "server")
         });
 
-        for (WebHookConfiguration webHookConfiguration : webHookConfigurationDao.getEnabledWebHookConfigurations(repo, eventType))
-        {
+        for (WebHookConfiguration webHookConfiguration : webHookConfigurationDao.getEnabledWebHookConfigurations(repo, eventType)) {
             post.setURI(URI.create(webHookConfiguration.getURL()));
             PushEventService pushEventService = new PushEventService(webHookConfiguration);
 
-            if(event instanceof Event && pushEventService.isValidEvent((Event) event, webHookConfiguration))
-            {
-                try (CloseableHttpResponse response = httpClient.execute(post))
-                {
+            if (event instanceof Event && pushEventService.isValidEvent((Event) event, webHookConfiguration)) {
+                try (CloseableHttpResponse response = httpClient.execute(post)) {
                     int statusCode = response.getStatusLine().getStatusCode();
-                    if (statusCode >= 400)
-                    {
+                    if (statusCode >= 400) {
                         LOGGER.error(
                                 "[repo: {}]| Something went wrong while posting (response code:{}) the following body to webhook: [{}({})] \n{}",
                                 repo,
@@ -341,9 +290,7 @@ public class PullRequestListener implements DisposableBean, InitializingBean
                                 webHookConfiguration.getURL(),
                                 body);
                     }
-                }
-                catch (IOException e)
-                {
+                } catch (IOException e) {
                     LOGGER.error(
                             "[repo: {}]| Something went wrong while posting the following body to webhook: [{}({})] \n{}",
                             repo,

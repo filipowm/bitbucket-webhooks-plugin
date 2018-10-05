@@ -7,9 +7,6 @@ import com.google.common.collect.ImmutableMap;
 import nl.topicus.bitbucket.persistence.DummyWebHookConfiguration;
 import nl.topicus.bitbucket.persistence.WebHookConfiguration;
 import nl.topicus.bitbucket.persistence.WebHookConfigurationDao;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URLEncodedUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -18,23 +15,24 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @Component
 class RepositoryConfigServlet extends HttpServlet {
     private final SoyTemplateRendererWrapper soyTemplateRenderer;
     private final RepositoryService repositoryService;
     private final WebHookConfigurationDao webHookConfigurationDao;
+    private final RepositoryConfigServletHandler repositoryConfigServletHandler;
 
     @Autowired
-    RepositoryConfigServlet(SoyTemplateRendererWrapper soyTemplateRenderer, @ComponentImport RepositoryService repositoryService, WebHookConfigurationDao webHookConfigurationDao) {
+    RepositoryConfigServlet(SoyTemplateRendererWrapper soyTemplateRenderer,
+                            @ComponentImport RepositoryService repositoryService,
+                            WebHookConfigurationDao webHookConfigurationDao,
+                            RepositoryConfigServletHandler repositoryConfigServletHandler) {
         this.soyTemplateRenderer = soyTemplateRenderer;
         this.repositoryService = repositoryService;
         this.webHookConfigurationDao = webHookConfigurationDao;
+        this.repositoryConfigServletHandler = repositoryConfigServletHandler;
     }
 
     @Override
@@ -43,33 +41,7 @@ class RepositoryConfigServlet extends HttpServlet {
         if (repository == null) {
             return;
         }
-
-        List<NameValuePair> queryParams = URLEncodedUtils.parse(getFullURL(req), "UTF-8");
-        if (queryParams.stream().anyMatch(nameValuePair -> nameValuePair.getName().equals("edit"))) {
-            Optional<NameValuePair> id = queryParams.stream().filter(nameValuePair -> nameValuePair.getName().equals("id") || StringUtils.isNotBlank(nameValuePair.getValue())).findFirst();
-            ImmutableMap.Builder<String, Object> properties = ImmutableMap.<String, Object>builder().put("repository", repository);
-            if (id.isPresent()) {
-                WebHookConfiguration webHookConfiguration = webHookConfigurationDao.getWebHookConfiguration(id.get().getValue());
-                if (webHookConfiguration != null && webHookConfiguration.getRepositoryId().equals(repository.getId())) {
-                    properties.put("configuration", webHookConfiguration);
-                }
-            }
-            String template = "nl.topicus.templates.edit";
-            render(resp, template, properties.build());
-        } else {
-            if (queryParams.stream().anyMatch(param -> param.getName().equals("delete"))) {
-                Optional<NameValuePair> id = queryParams.stream().filter(param -> param.getName().equals("id")).findFirst();
-                if (id.isPresent()) {
-                    WebHookConfiguration webHookConfiguration = webHookConfigurationDao.getWebHookConfiguration(id.get().getValue());
-                    if (webHookConfiguration != null && webHookConfiguration.getRepositoryId().equals(repository.getId())) {
-                        webHookConfigurationDao.deleteWebhookConfiguration(webHookConfiguration);
-                    }
-                }
-            }
-            WebHookConfiguration[] webHookConfigurations = webHookConfigurationDao.getWebHookConfigurations(repository);
-            String template = "nl.topicus.templates.repositorySettings";
-            render(resp, template, ImmutableMap.<String, Object>builder().put("repository", repository).put("configurations", webHookConfigurations).build());
-        }
+        repositoryConfigServletHandler.renderForGet(repository, req, resp);
     }
 
     private Repository getRepository(HttpServletRequest req) {
@@ -126,23 +98,6 @@ class RepositoryConfigServlet extends HttpServlet {
 
     private void render(HttpServletResponse resp, String templateName, Map<String, Object> data) throws IOException, ServletException {
         soyTemplateRenderer.render(resp, templateName, data);
-    }
-
-    public static URI getFullURL(HttpServletRequest request) throws ServletException {
-        StringBuffer requestURL = request.getRequestURL();
-        String queryString = request.getQueryString();
-        String url;
-        if (queryString == null) {
-            url = requestURL.toString();
-
-        } else {
-            url = requestURL.append('?').append(queryString).toString();
-        }
-        try {
-            return new URI(url);
-        } catch (URISyntaxException e) {
-            throw new ServletException(e);
-        }
     }
 
 }

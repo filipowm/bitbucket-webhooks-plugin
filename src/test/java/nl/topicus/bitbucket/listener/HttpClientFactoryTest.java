@@ -1,4 +1,4 @@
-package nl.topicus.bitbucket.api;
+package nl.topicus.bitbucket.listener;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.apache.http.HttpResponse;

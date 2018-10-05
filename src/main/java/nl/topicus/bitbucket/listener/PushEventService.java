@@ -1,4 +1,4 @@
-package nl.topicus.bitbucket.api;
+package nl.topicus.bitbucket.listener;
 
 import nl.topicus.bitbucket.events.Event;
 import nl.topicus.bitbucket.events.Ignorable;

@@ -1,4 +1,4 @@
-package nl.topicus.bitbucket.api;
+package nl.topicus.bitbucket.listener;
 
 import com.atlassian.bitbucket.ServiceException;
 import com.atlassian.bitbucket.build.BuildState;

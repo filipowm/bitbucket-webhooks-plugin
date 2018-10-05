@@ -1,4 +1,4 @@
-package nl.topicus.bitbucket.api;
+package nl.topicus.bitbucket.listener;
 
 import nl.topicus.bitbucket.utils.PropertiesUtil;
 import org.apache.http.impl.client.CloseableHttpClient;

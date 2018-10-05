@@ -39,7 +39,7 @@ class RepositoryConfigServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        Repository repository = getRepository(req, resp);
+        Repository repository = getRepository(req);
         if (repository == null) {
             return;
         }
@@ -72,26 +72,16 @@ class RepositoryConfigServlet extends HttpServlet {
         }
     }
 
-    private Repository getRepository(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    private Repository getRepository(HttpServletRequest req) {
         // Get repoSlug from path
         String pathInfo = req.getPathInfo();
-
         String[] components = pathInfo.split("/");
-
-        if (components.length < 3) {
-            return null;
-        }
-
-        Repository repository = repositoryService.getBySlug(components[1], components[2]);
-        if (repository == null) {
-            return null;
-        }
-        return repository;
+        return components.length < 3 ? null : repositoryService.getBySlug(components[1], components[2]);
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        Repository repository = getRepository(req, resp);
+        Repository repository = getRepository(req);
         if (repository == null) {
             resp.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;

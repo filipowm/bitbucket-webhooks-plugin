@@ -1,5 +1,6 @@
 package nl.topicus.bitbucket.api;
 
+import com.google.common.base.MoreObjects;
 import nl.topicus.bitbucket.persistence.WebHookConfiguration;
 
 import javax.xml.bind.annotation.XmlElement;
@@ -82,12 +83,12 @@ public class WebHookConfigurationModel {
 
     @Override
     public String toString() {
-        return "WebHookConfigurationModel{" +
-                "title='" + title + '\'' +
-                ", url='" + url + '\'' +
-                ", committersToIgnore='" + committersToIgnore + '\'' +
-                ", branchesToIgnore='" + branchesToIgnore + '\'' +
-                ", enabled=" + enabled +
-                '}';
+        return MoreObjects.toStringHelper(this)
+                .add("title", title)
+                .add("url", url)
+                .add("committersToIgnore", committersToIgnore)
+                .add("branchesToIgnore", branchesToIgnore)
+                .add("enabled", enabled)
+                .toString();
     }
 }

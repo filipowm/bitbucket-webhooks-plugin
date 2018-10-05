@@ -49,7 +49,7 @@ public class PushEventService {
     }
 
     private boolean ignoredByBranch(Ignorable event, WebHookConfiguration configuration) {
-        if (configuration.getBranchesToIgnore() != null && event.getBranches().size() > 0) {
+        if (configuration.getBranchesToIgnore() != null && !event.getBranches().isEmpty()) {
             boolean allBranchesIgnored = event.getBranches()
                     .stream()
                     .allMatch(name -> name.matches(configuration.getBranchesToIgnore()));

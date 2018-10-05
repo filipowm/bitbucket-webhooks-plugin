@@ -4,6 +4,7 @@ import com.atlassian.bitbucket.repository.Repository;
 import com.google.common.collect.ImmutableMap;
 import nl.topicus.bitbucket.persistence.WebHookConfiguration;
 import nl.topicus.bitbucket.persistence.WebHookConfigurationDao;
+import nl.topicus.bitbucket.utils.RequestUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
@@ -14,8 +15,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 
@@ -31,7 +30,7 @@ class RepositoryConfigServletHandler {
     }
 
     void renderForGet(Repository repository, HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        List<NameValuePair> queryParams = URLEncodedUtils.parse(getFullURL(req), "UTF-8");
+        List<NameValuePair> queryParams = URLEncodedUtils.parse(RequestUtil.getURI(req), "UTF-8");
         if (queryParams.stream().anyMatch(nameValuePair -> nameValuePair.getName().equals("edit"))) {
             renderEdit(queryParams, repository, resp);
         } else {
@@ -72,22 +71,5 @@ class RepositoryConfigServletHandler {
 
     private void render(HttpServletResponse resp, String templateName, Map<String, Object> data) throws IOException, ServletException {
         soyTemplateRenderer.render(resp, templateName, data);
-    }
-
-    public static URI getFullURL(HttpServletRequest request) throws ServletException {
-        StringBuffer requestURL = request.getRequestURL();
-        String queryString = request.getQueryString();
-        String url;
-        if (queryString == null) {
-            url = requestURL.toString();
-
-        } else {
-            url = requestURL.append('?').append(queryString).toString();
-        }
-        try {
-            return new URI(url);
-        } catch (URISyntaxException e) {
-            throw new ServletException(e);
-        }
     }
 }

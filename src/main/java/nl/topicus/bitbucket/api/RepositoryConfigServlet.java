@@ -3,8 +3,6 @@ package nl.topicus.bitbucket.api;
 import com.atlassian.bitbucket.repository.Repository;
 import com.atlassian.bitbucket.repository.RepositoryService;
 import com.atlassian.plugin.spring.scanner.annotation.imports.ComponentImport;
-import com.atlassian.soy.renderer.SoyException;
-import com.atlassian.soy.renderer.SoyTemplateRenderer;
 import com.google.common.collect.ImmutableMap;
 import nl.topicus.bitbucket.persistence.DummyWebHookConfiguration;
 import nl.topicus.bitbucket.persistence.WebHookConfiguration;
@@ -27,29 +25,16 @@ import java.util.Map;
 import java.util.Optional;
 
 @Component
-public class RepositoryConfigServlet extends HttpServlet {
-    private final SoyTemplateRenderer soyTemplateRenderer;
+class RepositoryConfigServlet extends HttpServlet {
+    private final SoyTemplateRendererWrapper soyTemplateRenderer;
     private final RepositoryService repositoryService;
     private final WebHookConfigurationDao webHookConfigurationDao;
 
     @Autowired
-    public RepositoryConfigServlet(@ComponentImport SoyTemplateRenderer soyTemplateRenderer, @ComponentImport RepositoryService repositoryService, WebHookConfigurationDao webHookConfigurationDao) {
+    RepositoryConfigServlet(SoyTemplateRendererWrapper soyTemplateRenderer, @ComponentImport RepositoryService repositoryService, WebHookConfigurationDao webHookConfigurationDao) {
         this.soyTemplateRenderer = soyTemplateRenderer;
         this.repositoryService = repositoryService;
         this.webHookConfigurationDao = webHookConfigurationDao;
-    }
-
-    protected void render(HttpServletResponse resp, String templateName, Map<String, Object> data) throws IOException, ServletException {
-        resp.setContentType("text/html;charset=UTF-8");
-        try {
-            soyTemplateRenderer.render(resp.getWriter(), "nl.topicus.bitbucket.bitbucket-webhooks:templates-soy", templateName, data);
-        } catch (SoyException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof IOException) {
-                throw (IOException) cause;
-            }
-            throw new ServletException(e);
-        }
     }
 
     @Override
@@ -147,6 +132,10 @@ public class RepositoryConfigServlet extends HttpServlet {
             String template = "nl.topicus.templates.repositorySettings";
             render(resp, template, ImmutableMap.<String, Object>builder().put("repository", repository).put("configurations", webHookConfigurations).build());
         }
+    }
+
+    private void render(HttpServletResponse resp, String templateName, Map<String, Object> data) throws IOException, ServletException {
+        soyTemplateRenderer.render(resp, templateName, data);
     }
 
     public static URI getFullURL(HttpServletRequest request) throws ServletException {
